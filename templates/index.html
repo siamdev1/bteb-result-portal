@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BTEB Result Portal | Modern & Fast</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>BTEB Result Portal</h1>
+            <p class="subtitle">Search your engineering results with a single click</p>
+        </header>
+
+        <div class="search-box">
+            <input type="text" id="roll" placeholder="Enter Roll Number (e.g. 772455)" autocomplete="off">
+            <button onclick="searchResult()">Get Result</button>
+        </div>
+
+        <div id="loader" class="loader">
+            <div class="spinner"></div>
+            <p>Fetching from BTEB Servers...</p>
+        </div>
+
+        <div id="result-container">
+            <!-- Dynamic Content -->
+        </div>
+    </div>
+
+    <script>
+        async function searchResult() {
+            const roll = document.getElementById('roll').value.trim();
+            const container = document.getElementById('result-container');
+            const loader = document.getElementById('loader');
+
+            if (!roll) {
+                alert('Please enter a roll number');
+                return;
+            }
+
+            // Reset UI
+            container.style.display = 'none';
+            container.innerHTML = '';
+            loader.style.display = 'block';
+
+            try {
+                const response = await fetch(`/api/result?roll=${roll}`);
+                const data = await response.json();
+
+                loader.style.display = 'none';
+
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+
+                renderResult(data);
+            } catch (err) {
+                loader.style.display = 'none';
+                alert('Failed to connect to API');
+            }
+        }
+
+        function renderResult(data) {
+            const container = document.getElementById('result-container');
+            
+            let html = `
+                <div class="result-card">
+                    <div class="student-info">
+                        <div class="info-item">
+                            <label>Roll Number</label>
+                            <span>${data.roll}</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Institute</label>
+                            <span>${data.info.institute}</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Course</label>
+                            <span>${data.info.course}</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Status</label>
+                            <span style="color: ${data.info.status === 'Passed' ? '#10b981' : '#ef4444'}">${data.info.status}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="semester-grid">
+            `;
+
+            data.semesters.forEach(sem => {
+                const isPassed = sem.gpa !== null;
+                html += `
+                    <div class="semester-item">
+                        <h4>${sem.title}</h4>
+                        <div class="gpa-val ${isPassed ? 'passed' : 'referred'}">
+                            ${sem.gpa || 'Referred'}
+                        </div>
+                        ${sem.referred_subjects.length > 0 ? `
+                            <ul class="failed-list">
+                                ${sem.referred_subjects.map(sub => `<li>⚠️ ${sub}</li>`).join('')}
+                            </ul>
+                        ` : ''}
+                    </div>
+                `;
+            });
+
+            html += `</div></div>`;
+            container.innerHTML = html;
+            container.style.display = 'block';
+        }
+
+        // Search on Enter
+        document.getElementById('roll').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') searchResult();
+        });
+    </script>
+</body>
+</html>
